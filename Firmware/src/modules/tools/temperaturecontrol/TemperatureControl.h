@@ -38,7 +38,7 @@ public:
     friend class PID_Autotuner;
 
 private:
-    bool configure(ConfigReader& cr, ConfigReader::section_map_t& m);
+    bool configure(ConfigReader& cr, ConfigReader::section_map_t& m, const char *name);
 
     void thermistor_read_tick(void);
     void pid_process(float);
@@ -77,31 +77,31 @@ private:
     float d_factor;
     float PIDdt;
 
-    float runaway_error_range;
 
     enum RUNAWAY_TYPE {NOT_HEATING, HEATING_UP, COOLING_DOWN, TARGET_TEMPERATURE_REACHED};
 
+    float runaway_error_range;
+    uint16_t runaway_heating_timeout; // secs
+    uint16_t runaway_cooling_timeout; // secs
+    uint16_t runaway_timer;
+    uint8_t runaway_range;
+
     uint8_t tool_id{0};
+
+    uint16_t set_m_code;
+    uint16_t set_and_wait_m_code;
+    uint16_t get_m_code;
 
     // pack these to save memory
     struct {
-        uint16_t name_checksum;
-        uint16_t set_m_code: 10;
-        uint16_t set_and_wait_m_code: 10;
-        uint16_t get_m_code: 10;
         RUNAWAY_TYPE runaway_state: 2;
-        // Temperature runaway config options
-        uint8_t runaway_range: 6; // max 63
-        uint16_t runaway_heating_timeout: 9; // 4088 secs
-        uint16_t runaway_cooling_timeout: 9; // 4088 secs
-        uint16_t runaway_timer: 9;
-        uint8_t tick: 3;
         bool use_bangbang: 1;
         bool temp_violated: 1;
         bool active: 1;
         bool readonly: 1;
         bool windup: 1;
         bool sensor_settings: 1;
+        bool ponm:1;
     };
 };
 

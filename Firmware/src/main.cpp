@@ -460,10 +460,11 @@ static void smoothie_startup(void *)
     // create the command shell, it is dependent on some of the above
     CommandShell *commandshell= CommandShell::getInstance();
 
-    // led 1 indicates boot phase 4 starts
-    Board_LED_Set(1, false); Board_LED_Set(0, true);
 
     if(ok) {
+        // led 1 indicates boot phase 4 starts
+        Board_LED_Set(1, false); Board_LED_Set(0, true);
+
         if(!fast_ticker->start()) {
             printf("WARNING: failed to start FastTicker (maybe nothing is using it?)\n");
         }
@@ -485,7 +486,9 @@ static void smoothie_startup(void *)
         config_error_msg = "There was a fatal error in the config.ini this must be fixed to continue\nOnly some shell commands are allowed and sdcard access\n";
         printf(config_error_msg.c_str());
         // Module::broadcast_halt(true);
+        Board_LED_Set(1, false); Board_LED_Set(0, false);
     }
+
     extern bool config_error_detected;
     if(config_error_detected) {
         config_error_msg = "There was an error detected in the config.ini\nPlease check the uart log\n";
@@ -513,7 +516,7 @@ static void smoothie_startup(void *)
     if(ok && config_override) {
         OutputStream os(&std::cout);
         if(load_config_override(os)) {
-            os.printf("INFO: configuration override loaded\n");
+            os.printf("INFO: configuration override %s loaded\n", DEFAULT_OVERRIDE_FILE);
 
         } else {
             os.printf("INFO: No saved configuration override\n");
@@ -554,6 +557,7 @@ extern "C" void main_system_setup();
 extern "C" int rtc_init();
 
 std::string get_mcu();
+uint8_t board_id= 0;
 
 int main(int argc, char *argv[])
 {
@@ -575,8 +579,19 @@ int main(int argc, char *argv[])
         printf("FATAL: UART setup failed\n");
     }
 
-    printf("INFO: %s on %s\n", get_mcu().c_str(), BUILD_TARGET);
+    // get board id
+    // 0 is first Prime with tmc2590 drivers
+    // 1 is second Prime with tmc2660 drivers
+    Pin bid3("PE10^", Pin::AS_INPUT),
+        bid2("PF3^", Pin::AS_INPUT),
+        bid1("PF5^", Pin::AS_INPUT),
+        bid0("PF7^", Pin::AS_INPUT);
+
+    board_id= 0x0F & ~(((bid3.get()?1:0)<<3) | ((bid2.get()?1:0)<<2) | ((bid1.get()?1:0)<<1) | ((bid0.get()?1:0)));
+    printf("INFO: %s on %s. board id: %02X\n", get_mcu().c_str(), BUILD_TARGET, board_id);
     printf("INFO: MCU clock rate= %lu Hz\n", SystemCoreClock);
+    // de init them
+    bid0.deinit(); bid1.deinit(); bid2.deinit(); bid3.deinit();
 
     if(rtc_init() != 1) {
         printf("ERROR: Failed to init RTC\n");

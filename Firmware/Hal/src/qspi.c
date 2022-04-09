@@ -36,9 +36,11 @@
 #ifdef BOARD_DEVEBOX
 #define QSPI_D1_PIN                GPIO_PIN_12
 #define QSPI_D1_GPIO_PORT          GPIOD
+#define QSPI_D1_AF                 GPIO_AF9_QUADSPI
 #else
 #define QSPI_D1_PIN                GPIO_PIN_9
 #define QSPI_D1_GPIO_PORT          GPIOF
+#define QSPI_D1_AF                 GPIO_AF10_QUADSPI
 #endif
 #define QSPI_D2_PIN                GPIO_PIN_2
 #define QSPI_D2_GPIO_PORT          GPIOE
@@ -214,7 +216,7 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
 
     /* QSPI D1 GPIO pin configuration  */
     GPIO_InitStruct.Pin       = QSPI_D1_PIN;
-    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    GPIO_InitStruct.Alternate = QSPI_D1_AF;
     HAL_GPIO_Init(QSPI_D1_GPIO_PORT, &GPIO_InitStruct);
 
     /* QSPI D2 GPIO pin configuration  */
@@ -228,12 +230,12 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
     HAL_GPIO_Init(QSPI_D3_GPIO_PORT, &GPIO_InitStruct);
 
     // mark pins as allocated
-    // allocate_hal_pin(QSPI_CS_GPIO_PORT, QSPI_CS_PIN);
-    // allocate_hal_pin(QSPI_CLK_GPIO_PORT, QSPI_CLK_PIN);
-    // allocate_hal_pin(QSPI_D0_GPIO_PORT, QSPI_D0_PIN);
-    // allocate_hal_pin(QSPI_D1_GPIO_PORT, QSPI_D1_PIN);
-    // allocate_hal_pin(QSPI_D2_GPIO_PORT, QSPI_D2_PIN);
-    // allocate_hal_pin(QSPI_D3_GPIO_PORT, QSPI_D3_PIN);
+    allocate_hal_pin(QSPI_CS_GPIO_PORT, QSPI_CS_PIN);
+    allocate_hal_pin(QSPI_CLK_GPIO_PORT, QSPI_CLK_PIN);
+    allocate_hal_pin(QSPI_D0_GPIO_PORT, QSPI_D0_PIN);
+    allocate_hal_pin(QSPI_D1_GPIO_PORT, QSPI_D1_PIN);
+    allocate_hal_pin(QSPI_D2_GPIO_PORT, QSPI_D2_PIN);
+    allocate_hal_pin(QSPI_D3_GPIO_PORT, QSPI_D3_PIN);
 
     /*##-3- Configure the NVIC for QSPI #########################################*/
     /* NVIC configuration for QSPI interrupt */

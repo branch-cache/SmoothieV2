@@ -65,6 +65,7 @@ bool CommandShell::initialize()
     THEDISPATCHER->add_handler( "mkdir", std::bind( &CommandShell::mkdir_cmd, this, _1, _2) );
     THEDISPATCHER->add_handler( "cat", std::bind( &CommandShell::cat_cmd, this, _1, _2) );
     THEDISPATCHER->add_handler( "md5sum", std::bind( &CommandShell::md5sum_cmd, this, _1, _2) );
+    THEDISPATCHER->add_handler( "load", std::bind( &CommandShell::load_cmd, this, _1, _2) );
 
     THEDISPATCHER->add_handler( "config-set", std::bind( &CommandShell::config_set_cmd, this, _1, _2) );
     THEDISPATCHER->add_handler( "config-get", std::bind( &CommandShell::config_get_cmd, this, _1, _2) );
@@ -253,6 +254,23 @@ bool CommandShell::rm_cmd(std::string& params, OutputStream& os)
         fn = stringutils::shift_parameter( params );
     }
     os.set_no_response();
+    return true;
+}
+
+bool CommandShell::load_cmd(std::string& params, OutputStream& os)
+{
+    HELP("load named config override file");
+    std::string fn = stringutils::shift_parameter( params );
+    if(!fn.empty()) {
+        if(!load_config_override(os, fn.c_str())) {
+            os.printf("failed to load config override file %s\n", fn.c_str());
+        } else {
+            os.printf("loaded config override file %s\n", fn.c_str());
+        }
+    } else {
+        os.printf("filename required\n");
+    }
+
     return true;
 }
 
@@ -654,7 +672,7 @@ static bool get_spindle_state()
 // set or get gpio
 bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
 {
-    HELP("set and get gpio pins: use PA1 | PK.8 | PC_11 out/in [on/off]");
+    HELP("set and get gpio pins: use PA1 out/in [on/off]");
 
     std::string gpio = stringutils::shift_parameter( params );
     std::string dir = stringutils::shift_parameter( params );
@@ -664,7 +682,20 @@ bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
         return true;
     }
 
-    // FIXME need to check if pin is already allocated and just read it if it is
+    char port = 0;
+    uint16_t pin_no = 0;
+    size_t pos;
+    if(!Pin::parse_pin(gpio, port, pin_no, pos)) {
+        os.printf("Illegal pin name: %s\n", gpio.c_str());
+        return true;
+    }
+
+    // FIXME need to handle allocated pins
+    if(Pin::is_allocated(port, pin_no)) {
+        os.printf("Pin is already allocated: %s\n", gpio.c_str());
+        return true;
+    }
+
     if(dir.empty() || dir == "in") {
         // read pin
         Pin pin(gpio.c_str(), Pin::AS_INPUT);
@@ -1309,7 +1340,7 @@ bool CommandShell::version_cmd(std::string& params, OutputStream& os)
 
     Version vers;
 
-    os.printf("%s on %s\n", get_mcu().c_str(), BUILD_TARGET);
+    os.printf("%s on %s. board_id: %02X\n", get_mcu().c_str(), BUILD_TARGET, board_id);
     os.printf("Build version: %s, Build date: %s, System Clock: %ldMHz\r\n", vers.get_build(), vers.get_build_date(), SystemCoreClock / 1000000);
     os.printf("%d axis, %d primary axis\n", MAX_ROBOT_ACTUATORS, N_PRIMARY_AXIS);
 

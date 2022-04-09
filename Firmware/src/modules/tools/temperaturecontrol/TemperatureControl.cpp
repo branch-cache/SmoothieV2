@@ -40,6 +40,7 @@
 #define p_factor_key "p_factor"
 #define i_factor_key "i_factor"
 #define d_factor_key "d_factor"
+#define ponm_key "use_ponm"
 
 #define i_max_key "i_max"
 #define windup_key "windup"
@@ -57,7 +58,6 @@ TemperatureControl::TemperatureControl(const char *name) : Module("temperature c
     temp_violated = false;
     sensor = nullptr;
     readonly = false;
-    tick = 0;
     active = false;
 }
 
@@ -82,12 +82,12 @@ bool TemperatureControl::load_controls(ConfigReader& cr)
         auto& m = i.second;
         if(cr.get_bool(m, "enable", false)) {
             TemperatureControl *tc = new TemperatureControl(name.c_str());
-            if(tc->configure(cr, m)) {
+            if(tc->configure(cr, m, name.c_str())) {
                 // make sure the first (or only) heater is selected
                 if(tc->tool_id == 0) tc->active = true;
                 if(tc->tool_id == 255) {
-                    // config did not set a tool id (eg bed) but we need a unique one so...
-                    tc->tool_id = 254 - cnt;
+                    // config did not set a tool id but we need a unique one so...
+                    tc->tool_id = 253 - cnt;
                     tc->active = true; // and they are always active
                 }
                 ++cnt;
@@ -107,34 +107,45 @@ bool TemperatureControl::load_controls(ConfigReader& cr)
     return cnt > 0;
 }
 
-bool TemperatureControl::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
+// setup defaults for known boards
+using def_t = struct {const char *heater; const char *adc; const char *desig; int id;};
+#ifdef BOARD_PRIME
+// setup default pins for Prime
+static std::map<std::string, def_t> default_config = {
+    {"hotend", {"PE0", "ADC1_0", "T", 0}},
+    {"hotend2", {"PB8", "ADC1_2", "T2", 1}},
+    {"bed", {"PE3", "ADC1_3", "B", 254}},
+    {"board", {"nc", "ADC1_1", "P", 253}}
+};
+
+#else
+static std::map<std::string, def_t> default_config;
+#endif
+
+bool TemperatureControl::configure(ConfigReader& cr, ConfigReader::section_map_t& m, const char *name)
 {
     // We start not desiring any temp
     this->target_temperature = UNDEFINED;
     this->sensor_settings = false; // set to true if sensor settings have been overriden
 
+    def_t def= {"nc", "", "?", 255};
+    auto defs= default_config.find(name);
+    if(defs != default_config.end()) {
+        def= defs->second;
+    }
+
     // General config
-    this->tool_id             = cr.get_int(m, tool_id_key, 255); // set to 255 by default which is a bed and not controlled by Tx, other extruders should be 0 or 1 etc
+    this->tool_id             = cr.get_int(m, tool_id_key, def.id); // set to 255 by default which is not an extruder and not controlled by Tx, etruders should be 0 or 1 etc
     this->set_m_code          = cr.get_int(m, set_m_code_key, tool_id < 100 ? 104 : 140); // hotend vs bed
     this->set_and_wait_m_code = cr.get_int(m, set_and_wait_m_code_key, tool_id < 100 ? 109 : 190); // hotend vs bed
     this->get_m_code          = cr.get_int(m, get_m_code_key, 105);
     this->readings_per_second = cr.get_int(m, readings_per_second_key, 20);
-    this->designator          = cr.get_string(m, designator_key, "T");
+    this->designator          = cr.get_string(m, designator_key, def.desig);
 
     // Runaway parameters
-    uint32_t n = cr.get_int(m, runaway_range_key, 20);
-    if(n > 63) n = 63;
-    this->runaway_range = n;
-
-    // TODO probably do not need to pack these anymore
-    // these need to fit in 9 bits after dividing by 8 so max is 4088 secs or 68 minutes
-    n = cr.get_int(m, runaway_heating_timeout_key, 900);
-    if(n > 4088) n = 4088;
-    this->runaway_heating_timeout = n / 8; // we have 8 second ticks
-    n = cr.get_int(m, runaway_cooling_timeout_key, 0); // disable by default
-    if(n > 4088) n = 4088;
-    this->runaway_cooling_timeout = n / 8;
-
+    this->runaway_range = cr.get_int(m, runaway_range_key, 20);
+    this->runaway_heating_timeout = cr.get_int(m, runaway_heating_timeout_key, 60*5); // default timeout is 5 mins
+    this->runaway_cooling_timeout = cr.get_int(m, runaway_cooling_timeout_key, this->runaway_heating_timeout); // same as heating timeout by default
     this->runaway_error_range = cr.get_float(m, runaway_error_range_key, 1.0F);
 
     // Max and min temperatures we are not allowed to get over (Safety)
@@ -142,14 +153,14 @@ bool TemperatureControl::configure(ConfigReader& cr, ConfigReader::section_map_t
     this->min_temp = cr.get_float(m, min_temp_key, 0);
 
     // Heater pin
-    std::string hp = cr.get_string(m, heater_pin_key, "nc");
+    std::string hp = cr.get_string(m, heater_pin_key, def.heater);
     if(hp != "nc" && !hp.empty()) {
         this->heater_pin = new SigmaDeltaPwm(hp.c_str());
         if(this->heater_pin->connected()) {
             this->readonly = false;
 
         } else {
-            printf("ERROR: configure-temperature control: heater pin is invalid %s\n", hp.c_str());
+            printf("ERROR: configure-temperature: %s heater pin is invalid %s\n", name, hp.c_str());
             this->readonly = true;
             delete heater_pin;
             heater_pin = nullptr;
@@ -174,16 +185,15 @@ bool TemperatureControl::configure(ConfigReader& cr, ConfigReader::section_map_t
     }
 
     // allow sensor to read the config
-    if(!sensor->configure(cr, m)) {
-        printf("INFO: configure-temperature: %s sensor %s failed to configure\n", get_instance_name(), sensor_type.c_str());
+    if(!sensor->configure(cr, m, def.adc)) {
+        printf("ERROR: configure-temperature: %s sensor %s failed to configure\n", name, sensor_type.c_str());
         delete sensor;
-        sensor= nullptr;
+        sensor = nullptr;
         return false;
     }
 
     this->preset1 = cr.get_float(m, preset1_key, 0);
     this->preset2 = cr.get_float(m, preset2_key, 0);
-
 
     // sigma-delta output modulation
     this->o = 0;
@@ -209,6 +219,8 @@ bool TemperatureControl::configure(ConfigReader& cr, ConfigReader::section_map_t
     setPIDp( cr.get_float(m, p_factor_key, 10 ) );
     setPIDi( cr.get_float(m, i_factor_key, 0.3f) );
     setPIDd( cr.get_float(m, d_factor_key, 200) );
+    // use Proportional on measurement otherwise Proportional on Error (legacy)
+    ponm = cr.get_bool(m, ponm_key, false);
 
     if(!this->readonly) {
         // set to the same as max_pwm by default
@@ -316,13 +328,18 @@ bool TemperatureControl::handle_mcode(GCode & gcode, OutputStream & os)
             return true;
 
         } else if(!gcode.has_arg('S')) {
-            os.printf("%s(S%d): using %s - active: %d\n", this->designator.c_str(), this->tool_id, this->readonly ? "Readonly" : this->use_bangbang ? "Bangbang" : "PID", active);
+            os.printf("%s(S%d): using %s - active: %d", this->designator.c_str(), this->tool_id, this->readonly ? "Readonly" : this->use_bangbang ? "Bangbang" : "PID", active);
+            if(!readonly) {
+                os.printf(", %s\n", heater_pin->to_string().c_str());
+            }else{
+                os.printf("\n");
+            }
             sensor->get_raw(os);
             TempSensor::sensor_options_t options;
             if(sensor->get_optional(options)) {
                 for(auto &i : options) {
                     // foreach optional value
-                    os.printf("%s(S%d): %c %1.18f\n", this->designator.c_str(), this->tool_id, i.first, i.second);
+                    os.printf("%s(S%d): %c %1.12f\n", this->designator.c_str(), this->tool_id, i.first, i.second);
                 }
             }
             os.printf("\n");
@@ -363,15 +380,17 @@ bool TemperatureControl::handle_mcode(GCode & gcode, OutputStream & os)
                 this->i_max = gcode.get_arg('X');
             if (gcode.has_arg('Y'))
                 this->heater_pin->max_pwm(gcode.get_arg('Y'));
+            if (gcode.has_arg('Z'))
+                this->ponm = gcode.get_arg('Z') == 1;
 
         } else if(!gcode.has_arg('S')) {
-            os.printf("%s(S%d): Pf:%g If:%g Df:%g X(I_max):%g max pwm: %d O:%d\n", this->designator.c_str(), this->tool_id, this->p_factor, this->i_factor / this->PIDdt, this->d_factor * this->PIDdt, this->i_max, this->heater_pin->max_pwm(), o);
+            os.printf("%s(S%d): P: %g I: %g D: %g X(I_max):%g max pwm: %d O:%d\n", this->designator.c_str(), this->tool_id, this->p_factor, this->i_factor / this->PIDdt, this->d_factor * this->PIDdt, this->i_max, this->heater_pin->max_pwm(), o);
         }
 
         return true;
 
     } else if (gcode.get_code() == 500) { // M500 saves some volatile settings to config override file
-        os.printf(";PID settings, i_max, max_pwm:\nM301 S%d P%1.4f I%1.4f D%1.4f X%1.4f Y%d\n", this->tool_id, this->p_factor, this->i_factor / this->PIDdt, this->d_factor * this->PIDdt, this->i_max, this->heater_pin->max_pwm());
+        os.printf(";PID settings, i_max, max_pwm:\nM301 S%d P%1.4f I%1.4f D%1.4f X%1.4f Y%d Z%d\n", this->tool_id, this->p_factor, this->i_factor / this->PIDdt, this->d_factor * this->PIDdt, this->i_max, this->heater_pin->max_pwm(), this->ponm);
 
         os.printf(";Max temperature setting:\nM143 S%d P%1.4f\n", this->tool_id, this->max_temp);
 
@@ -381,7 +400,7 @@ bool TemperatureControl::handle_mcode(GCode & gcode, OutputStream & os)
             if(sensor->get_optional(options) && !options.empty()) {
                 os.printf(";Optional temp sensor specific settings:\nM305 S%d", this->tool_id);
                 for(auto &i : options) {
-                    os.printf(" %c%1.18f", i.first, i.second);
+                    os.printf(" %c%1.12f", i.first, i.second);
                 }
                 os.printf("\n");
             }
@@ -490,7 +509,7 @@ void TemperatureControl::set_desired_temperature(float desired_temperature)
         // set to whatever the output currently is See http://brettbeauregard.com/blog/2011/04/improving-the-beginner%E2%80%99s-pid-initialization/
         this->iTerm = this->o;
         if (this->iTerm > this->i_max) this->iTerm = this->i_max;
-        else if (this->iTerm < 0.0) this->iTerm = 0.0;
+        else if (this->iTerm < 0.0F) this->iTerm = 0.0F;
     }
 
     // reset the runaway state, even if it was a temp change
@@ -550,29 +569,54 @@ void TemperatureControl::pid_process(float temperature)
         return;
     }
 
-    // regular PID control
-    float error = target_temperature - temperature;
+    // PID control
+    if(ponm) {
+        // Proportional on Measurement from http://brettbeauregard.com/blog/2017/06/introducing-proportional-on-measurement/
+        float input = temperature;
+        float error = target_temperature - input;
+        float dInput = (input - lastInput);
+        iTerm += (i_factor * error);
 
-    float new_I = this->iTerm + (error * this->i_factor);
-    if (new_I > this->i_max) new_I = this->i_max;
-    else if (new_I < 0.0) new_I = 0.0;
-    if(!this->windup) this->iTerm = new_I;
+        // Add Proportional on Measurement
+        iTerm -= p_factor * dInput;
 
-    float d = (temperature - this->lastInput);
+        if(iTerm > heater_pin->max_pwm()) iTerm = heater_pin->max_pwm();
+        else if(iTerm < 0) iTerm = 0;
 
-    // calculate the PID output
-    // TODO does this need to be scaled by max_pwm/256? I think not as p_factor already does that
-    this->o = (this->p_factor * error) + new_I - (this->d_factor * d);
+        // Compute Rest of PID Output
+        float output = iTerm - d_factor * dInput;
 
-    if (this->o >= heater_pin->max_pwm())
-        this->o = heater_pin->max_pwm();
-    else if (this->o < 0)
-        this->o = 0;
-    else if(this->windup)
-        this->iTerm = new_I; // Only update I term when output is not saturated.
+        if(output > heater_pin->max_pwm()) output = heater_pin->max_pwm();
+        else if(output < 0) output = 0;
+        this->o = output;
+        heater_pin->pwm(output);
+        lastInput = input;
 
-    this->heater_pin->pwm(this->o);
-    this->lastInput = temperature;
+    } else {
+        // regular P on Error PID control
+        float error = target_temperature - temperature;
+
+        float new_I = this->iTerm + (error * this->i_factor);
+        if (new_I > this->i_max) new_I = this->i_max;
+        else if (new_I < 0.0) new_I = 0.0;
+        if(!this->windup) this->iTerm = new_I;
+
+        float d = (temperature - this->lastInput);
+
+        // calculate the PID output
+        // TODO does this need to be scaled by max_pwm/256? I think not as p_factor already does that
+        this->o = (this->p_factor * error) + new_I - (this->d_factor * d);
+
+        if (this->o >= heater_pin->max_pwm())
+            this->o = heater_pin->max_pwm();
+        else if (this->o < 0)
+            this->o = 0;
+        else if(this->windup)
+            this->iTerm = new_I; // Only update I term when output is not saturated.
+
+        this->heater_pin->pwm(this->o);
+        this->lastInput = temperature;
+    }
 }
 
 // called every second
@@ -586,16 +630,13 @@ void TemperatureControl::check_runaway()
         print_to_all_consoles(error_msg);
         // force into ALARM state
         broadcast_halt(true);
-        temp_violated= false;
+        temp_violated = false;
         return;
     }
 
     // printf("DEBUG: check_runaway: %s\n", designator.c_str());
     // see if runaway detection is enabled
     if(this->runaway_heating_timeout == 0 && this->runaway_range == 0) return;
-
-    // check every 8 seconds, depends on tick being 3 bits
-    if(++tick != 0) return;
 
     // Check whether or not there is a temperature runaway issue, if so stop everything and report it
 
@@ -611,7 +652,6 @@ void TemperatureControl::check_runaway()
             case NOT_HEATING: // If we were previously not trying to heat, but we are now, change to state WAITING_FOR_TEMP_TO_BE_REACHED
                 this->runaway_state = (this->target_temperature >= current_temperature || this->runaway_cooling_timeout == 0) ? HEATING_UP : COOLING_DOWN;
                 this->runaway_timer = 0;
-                tick = 0;
                 break;
 
             case HEATING_UP:
@@ -621,7 +661,6 @@ void TemperatureControl::check_runaway()
                     (runaway_state == COOLING_DOWN && current_temperature <= (this->target_temperature + this->runaway_error_range)) ) {
                     this->runaway_state = TARGET_TEMPERATURE_REACHED;
                     this->runaway_timer = 0;
-                    tick = 0;
 
                 } else {
                     uint16_t t = (runaway_state == HEATING_UP) ? this->runaway_heating_timeout : this->runaway_cooling_timeout;
@@ -644,12 +683,13 @@ void TemperatureControl::check_runaway()
                     // we are in state TARGET_TEMPERATURE_REACHED, check for thermal runaway
                     float delta = current_temperature - this->target_temperature;
 
-                    // If the temperature is outside the acceptable range for 8 seconds, this allows for some noise spikes without halting
+                    // If the temperature is outside the acceptable range for 5 seconds, this allows for some noise spikes without halting
                     if(fabsf(delta) > this->runaway_range) {
-                        if(this->runaway_timer++ >= 1) { // this being 8 seconds
+                        if(this->runaway_timer++ >= 5) {
                             char error_msg[132];
                             snprintf(error_msg, sizeof(error_msg), "ERROR: Temperature runaway on %s (delta temp %f), HALT asserted, TURN POWER OFF IMMEDIATELY - reset or M999 required\n", designator.c_str(), delta);
                             print_to_all_consoles(error_msg);
+                            print_to_all_consoles("WARNING: All mosfets have been turned off until HALT is cleared\n");
 
                             broadcast_halt(true);
                             this->runaway_state = NOT_HEATING;

@@ -43,14 +43,14 @@ class Pin;
 class GCode;
 
 /*!
- * \class TMC2590
- * \brief Class representing a TMC2590 stepper driver
+ * \class TMC26X
+ * \brief Class representing a TMC26X stepper driver
  */
-class TMC2590 : public TMCBase
+class TMC26X : public TMCBase
 {
 public:
     /*!
-     * \brief creates a new represenatation of a stepper motor connected to a TMC2590 stepper driver
+     * \brief creates a new represenatation of a stepper motor connected to a TMC26X stepper driver
      *
      * This is the main constructor. If in doubt use this. You must provide all parameters as described below.
      *
@@ -63,15 +63,15 @@ public:
      * You can select a different stepping with setMicrosteps() to aa different value.
      * \sa start(), setMicrosteps()
      */
-    TMC2590(char designator);
+    TMC26X(char designator);
 
     /*!
-     * \brief configures the TMC2590 stepper driver. Before you called this function the stepper driver is in nonfunctional mode.
+     * \brief configures the TMC26X stepper driver. Before you called this function the stepper driver is in nonfunctional mode.
      *
      * \param rms_current the maximum current to privide to the motor in mA (!). A value of 200 would send up to 200mA to the motor
      * \param resistor the current sense resistor in milli Ohm, defaults to ,15 Ohm ( or 150 milli Ohm) as in the TMC260 Arduino Shield
 
-     * This routine co`nfigures the TMC2590 stepper driver for the given values via SPI.
+     * This routine configures the TMC26X stepper driver for the given values via SPI.
      * Most member functions are non functional if the driver has not been started.
      */
     virtual void init();
@@ -97,27 +97,9 @@ public:
     virtual int getMicrosteps(void);
 
     /*!
-     *\brief enables or disables the motor driver bridges. If disabled the motor can run freely. If enabled not.
-     *\param enabled a bool value true if the motor should be enabled, false otherwise.
+     * \brief Prints out all the information that can be found in the last status read out - it does not force a status readout.
+     * The result is printed via Serial
      */
-    virtual void setEnabled(bool enabled);
-
-    /*!
-     *\brief checks if the output bridges are enabled. If the bridges are not enabled the motor can run freely
-     *\return true if the bridges and by that the motor driver are enabled, false if not.
-     *\sa setEnabled()
-     */
-    virtual bool isEnabled();
-
-    /*!
-     * \brief set the maximum motor current in mA (1000 is 1 Amp)
-     * Keep in mind this is the maximum peak Current. The RMS current will be 1/sqrt(2) smaller. The actual current can also be smaller
-     * by employing CoolStep.
-     * \param current the maximum motor current in mA
-     * \sa getCurrent(), getCurrentCurrent()
-     */
-    virtual void setCurrent(unsigned int current);
-
     virtual bool set_raw_register(OutputStream& stream, uint32_t reg, uint32_t val);
     virtual bool check_errors();
 
@@ -127,21 +109,9 @@ public:
 
 private:
 
-    /*!
-     * \brief Manually read out the status register
-     * This function sends a byte to the motor driver in order to get the current readout. The parameter read_value
-     * seletcs which value will get returned. If the read_vlaue changes in respect to the previous readout this method
-     * automatically send two bytes to the motor: one to set the redout and one to get the actual readout. So this method
-     * may take time to send and read one or two bits - depending on the previous readout.
-     * \param read_value selects which value to read out (0..3). You can use the defines TMC2590_READOUT_POSITION, TMC_262_READOUT_STALLGUARD, or TMC_262_READOUT_CURRENT
-     * \sa TMC2590_READOUT_POSITION, TMC_262_READOUT_STALLGUARD, TMC_262_READOUT_CURRENT
-     */
-    void readStatus(int8_t read_value);
-
     void setStepInterpolation(int8_t value);
     bool getStepInterpolation();
     void setDoubleEdge(int8_t value);
-    void setPassiveFastDecay(int8_t value);
 
     /*!
      * \brief Sets and configure the classical Constant Off Timer Chopper
@@ -207,6 +177,15 @@ private:
      * reducing electromagnetic emission on single frequencies.
      */
     void setRandomOffTime(int8_t value);
+
+    /*!
+     * \brief set the maximum motor current in mA (1000 is 1 Amp)
+     * Keep in mind this is the maximum peak Current. The RMS current will be 1/sqrt(2) smaller. The actual current can also be smaller
+     * by employing CoolStep.
+     * \param current the maximum motor current in mA
+     * \sa getCurrent(), getCurrentCurrent()
+     */
+    void setCurrent(unsigned int current);
 
     /*!
      * \brief readout the motor maximum current in mA (1000 is an Amp)
@@ -353,13 +332,11 @@ private:
 
     /*!
      * \brief Return over temperature status of the last status readout
-     * return 0 is everything is OK, TMC2590_OVERTEMPERATURE_PREWARING if status is reached, TMC2590_OVERTEMPERATURE_SHUTDOWN is the chip is shutdown, -1 if the status is unknown.
+     * return 0 is everything is OK, TMC26X_OVERTEMPERATURE_PREWARING if status is reached, TMC26X_OVERTEMPERATURE_SHUTDOWN is the chip is shutdown, -1 if the status is unknown.
      * Keep in mind that this method does not enforce a readout but uses the value of the last status readout.
      * You may want to use getMotorPosition() or getCurrentStallGuardReading() to enforce an updated status readout.
      */
     int8_t getOverTemperature(void);
-    bool isOverTemperature_SHUTDOWN(void);
-    bool isOverTemperature_WARNING(void);
 
     /*!
      * \brief Is motor channel A shorted to ground detected in the last status readout.
@@ -414,15 +391,37 @@ private:
      */
     bool isStallGuardReached(void);
 
+    /*!
+     *\brief enables or disables the motor driver bridges. If disabled the motor can run freely. If enabled not.
+     *\param enabled a bool value true if the motor should be enabled, false otherwise.
+     */
+    void setEnabled(bool enabled);
 
-private:
+    /*!
+     *\brief checks if the output bridges are enabled. If the bridges are not enabled the motor can run freely
+     *\return true if the bridges and by that the motor driver are enabled, false if not.
+     *\sa setEnabled()
+     */
+    bool isEnabled();
+
+    /*!
+     * \brief Manually read out the status register
+     * This function sends a byte to the motor driver in order to get the current readout. The parameter read_value
+     * seletcs which value will get returned. If the read_vlaue changes in respect to the previous readout this method
+     * automatically send two bytes to the motor: one to set the redout and one to get the actual readout. So this method
+     * may take time to send and read one or two bits - depending on the previous readout.
+     * \param read_value selects which value to read out (0..3). You can use the defines TMC26X_READOUT_POSITION, TMC_262_READOUT_STALLGUARD, or TMC_262_READOUT_CURRENT
+     * \sa TMC26X_READOUT_POSITION, TMC_262_READOUT_STALLGUARD, TMC_262_READOUT_CURRENT
+     */
+    void readStatus(int8_t read_value);
+
     //helper routione to get the top 10 bit of the readout
     inline int getReadoutValue();
     bool check_error_status_bits(OutputStream& stream);
 
     // SPI sender
-    inline void send20bits(uint32_t datagram);
-    bool sendSPI(void *b, void *r);
+    inline void send262(unsigned long datagram);
+    int sendSPI(uint8_t *b, int cnt, uint8_t *r);
 
     // one set of common settings
     static bool common_setup;
@@ -430,8 +429,6 @@ private:
     // one instance of SPI is shared
     static uint8_t spi_channel;
     static SPI *spi;
-    static Pin *reset_pin;
-
     Pin *spi_cs;
     std::string name;
 
@@ -468,12 +465,5 @@ private:
 
     uint8_t cool_step_lower_threshold; // we need to remember the threshold to enable and disable the CoolStep feature
     char designator;
-
-    private:
-
-    using TestFun = decltype(std::mem_fn(&TMC2590::isOverTemperature_WARNING));
-    static const std::array<TestFun, 6> test_fncs;
-    using e_t = std::tuple<int, bool, const char*>;
-    static const std::array<e_t, 6> tests;
 };
 

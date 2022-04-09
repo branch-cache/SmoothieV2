@@ -42,7 +42,7 @@ Thermistor::~Thermistor()
 }
 
 // Get configuration from the config file
-bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
+bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m, const char *defadc)
 {
     // Values are here : http://reprap.org/wiki/Thermistor
     this->r0   = 100000;
@@ -111,15 +111,15 @@ bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
     this->r2 = cr.get_float(m, r2_key, this->r2);
 
     // for the dedicated ADC specify the channel
-    std::string adc_channel= cr.get_string(m, thermistor_pin_key, "");
-    if(adc_channel.empty()) {
-        printf("config-thermistor: no thermistor pin defined\n");
+    std::string adc_channel= cr.get_string(m, thermistor_pin_key, defadc);
+    if(adc_channel.empty() || adc_channel == "nc") {
+        printf("ERROR: config-thermistor: no thermistor pin defined\n");
         return false;
     }
 
     thermistor_pin= new Adc(adc_channel.c_str());
     if(!thermistor_pin->is_valid()) {
-        printf("config-thermistor: Thermistor ADC channel is invalid: %s\n", adc_channel.c_str());
+        printf("ERROR: config-thermistor: Thermistor ADC channel is invalid: %s\n", adc_channel.c_str());
         return false;
     }
 
@@ -127,7 +127,7 @@ bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
     // specified as three comma separated floats, no spaces
     std::string coef = cr.get_string(m, coefficients_key, "");
 
-    // speficy three temp,resistance pairs, best to use 25° 150° 240° and the coefficients will be calculated
+    // specify three temp,resistance pairs, best to use 25° 150° 240° and the coefficients will be calculated
     // specified as 25.0,100000.0,150.0,1355.0,240.0,203.0 which is temp in °C,resistance in ohms
     std::string rtc = cr.get_string(m, rt_curve_key, "");
     if(!rtc.empty()) {
@@ -141,7 +141,7 @@ bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
         std::vector<float> trl = stringutils::parse_number_list(rtc.c_str());
         if(trl.size() != 6) {
             // punt we need 6 numbers, three pairs
-            printf("config-thermistor: Error in config need 6 numbers for Steinhart-Hart\n");
+            printf("ERROR: config-thermistor: Error in config need 6 numbers for Steinhart-Hart\n");
             return false;
         }
 
@@ -156,7 +156,7 @@ bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
         std::vector<float> v = stringutils::parse_number_list(coef.c_str());
         if(v.size() != 3) {
             // punt we need 6 numbers, three pairs
-            printf("config-thermistor: Error in config need 3 Steinhart-Hart coefficients\n");
+            printf("ERROR: config-thermistor: Error in config need 3 Steinhart-Hart coefficients\n");
             return false;
         }
 
@@ -170,7 +170,7 @@ bool Thermistor::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
         if(!calc_jk()) return false;
 
     } else if(!found) {
-        printf("config-thermistor: Error in config need rt_curve, coefficients, beta or a valid predefined thermistor defined\n");
+        printf("ERROR: config-thermistor: Error in config need rt_curve, coefficients, beta or a valid predefined thermistor defined\n");
         return false;
     }
 
@@ -247,22 +247,30 @@ void Thermistor::get_raw(OutputStream& os)
 {
     int adc_value = new_thermistor_reading();
     const uint32_t max_adc_value = Adc::get_max_value();
-
-    // resistance of the thermistor in ohms
-    float r = r2 / (((float)max_adc_value / adc_value) - 1.0F);
-    if (r1 > 0.0F) r = (r1 * r) / (r1 - r);
+    float r;
+    if(adc_value > 0) {
+        // resistance of the thermistor in ohms
+        r = r2 / (((float)max_adc_value / adc_value) - 1.0F);
+        if (r1 > 0.0F) r = (r1 * r) / (r1 - r);
+    }else{
+        r= std::numeric_limits<float>::infinity();
+    }
     float v = 3.3F * ((float)adc_value / max_adc_value);
-    os.printf("adc= %d, resistance= %f, voltage= %f, errors: %d\n", adc_value, r, v, thermistor_pin->get_errors());
+    os.printf("%s: adc= %d, resistance= %f, voltage= %f, errors: %d\n", thermistor_pin->to_string().c_str(), adc_value, r, v, thermistor_pin->get_errors());
 
     float t;
-    if(this->use_steinhart_hart) {
-        os.printf("S/H c1= %1.18f, c2= %1.18f, c3= %1.18f\n", c1, c2, c3);
-        float l = logf(r);
-        t = (1.0F / (this->c1 + this->c2 * l + this->c3 * powf(l, 3))) - 273.15F;
-        os.printf("S/H temp= %f, min= %f, max= %f, delta= %f\n", t, min_temp, max_temp, max_temp - min_temp);
-    } else {
-        t = (1.0F / (k + (j * logf(r / r0)))) - 273.15F;
-        os.printf("beta temp= %f, min= %f, max= %f, delta= %f\n", t, min_temp, max_temp, max_temp - min_temp);
+    if(!isinf(r)) {
+        if(this->use_steinhart_hart) {
+            os.printf("S/H c1= %1.12f, c2= %1.12f, c3= %1.12f\n", c1, c2, c3);
+            float l = logf(r);
+            t = (1.0F / (this->c1 + this->c2 * l + this->c3 * powf(l, 3))) - 273.15F;
+            os.printf("S/H temp= %f, min= %f, max= %f, delta= %f\n", t, min_temp, max_temp, max_temp - min_temp);
+        } else {
+            t = (1.0F / (k + (j * logf(r / r0)))) - 273.15F;
+            os.printf("beta temp= %f, min= %f, max= %f, delta= %f\n", t, min_temp, max_temp, max_temp - min_temp);
+        }
+    }else{
+        t= std::numeric_limits<float>::infinity();
     }
 
     // if using a predefined thermistor show its name and which table it is from
@@ -383,8 +391,10 @@ bool Thermistor::set_optional(const sensor_options_t& options)
     if(define_beta || change_beta) {
         if(!calc_jk()) return false;
         use_steinhart_hart = false;
+        thermistor_number= 0;
     } else if(define_shh > 0) {
         use_steinhart_hart = true;
+        thermistor_number= 0;
     } else {
         return false;
     }

@@ -316,13 +316,17 @@ bool Robot::configure(ConfigReader& cr)
             printf("DEBUG: configure-robot: microstepping for %s set to %d,%d,%d\n",
                    s->first.c_str(), ms1_pin.get(), ms2_pin.get(), ms3_pin.get());
         }
-#elif defined(DRIVER_TMC2590)
-        // drivers by default for XYZA are internal TMC2590, BC are by default external
-        std::string type= cr.get_string(m, driver_type_key, a >= 4 ? "external" : "tmc2590");
-        if(type == "tmc2590") {
-            // setup the TMC2590 driver for this motor
-            if(!actuators[a]->setup_tmc2590(cr, s->first.c_str())) {
-                printf("FATAL: configure-robot: setup_tmc2590 failed for %s\n", s->first.c_str());
+#elif defined(DRIVER_TMC)
+        // drivers by default for XYZA are internal, BC are by default external
+        // check board ID and select default tmc driver accordingly
+        const char *def_driver= board_id == 1 ? "tmc2660" : "tmc2590";
+        std::string type= cr.get_string(m, driver_type_key, a >= 4 ? "external" : def_driver);
+        if(type == "tmc2590" || type == "tmc2660") {
+            uint32_t t= type=="tmc2590" ? 2590 : 2660;
+
+            // setup the TMC driver for this motor
+            if(!actuators[a]->setup_tmc(cr, s->first.c_str(), t)) {
+                printf("FATAL: configure-robot: setup_tmc%lu failed for %s\n", t, s->first.c_str());
                 return false;
             }
 
@@ -355,7 +359,7 @@ bool Robot::configure(ConfigReader& cr)
     if(s != ssm.end()) {
         auto& mm = s->second; // map of general actuator config settings
 
-#if defined(DRIVER_TMC2590)
+#if defined(DRIVER_TMC)
         check_driver_errors= cr.get_bool(mm, check_driver_errors_key, false);
         halt_on_driver_alarm= cr.get_bool(mm, halt_on_driver_alarm_key, false);
         const char *default_motor_enn= "PH13";
@@ -428,7 +432,7 @@ bool Robot::configure(ConfigReader& cr)
     #endif
 
     //this->clearToolOffset();
-#ifdef DRIVER_TMC2590
+#ifdef DRIVER_TMC
     // setup a timer to periodically check VMOT and if it is off we need to tell all motors to reset when it comes on again
     // also will check driver errors if enabled
     periodic_checks();
@@ -502,7 +506,7 @@ bool Robot::configure(ConfigReader& cr)
     THEDISPATCHER->add_handler(Dispatcher::MCODE_HANDLER, 500, std::bind(&Robot::handle_M500, this, _1, _2));
 
     THEDISPATCHER->add_handler(Dispatcher::MCODE_HANDLER, 665, std::bind(&Robot::handle_M665, this, _1, _2));
-#ifdef DRIVER_TMC2590
+#ifdef DRIVER_TMC
     THEDISPATCHER->add_handler(Dispatcher::MCODE_HANDLER, 909, std::bind(&Robot::handle_M909, this, _1, _2));
     THEDISPATCHER->add_handler(Dispatcher::MCODE_HANDLER, 911, std::bind(&Robot::handle_M911, this, _1, _2));
     THEDISPATCHER->add_handler( "setregs", std::bind( &Robot::handle_setregs_cmd, this, _1, _2) );
@@ -510,7 +514,7 @@ bool Robot::configure(ConfigReader& cr)
     return true;
 }
 
-#ifdef DRIVER_TMC2590
+#ifdef DRIVER_TMC
 void Robot::periodic_checks()
 {
     // check vmot
@@ -1220,7 +1224,7 @@ bool Robot::handle_mcodes(GCode& gcode, OutputStream& os)
     return handled;
 }
 
-#ifdef DRIVER_TMC2590
+#ifdef DRIVER_TMC
 bool Robot::handle_M909(GCode& gcode, OutputStream& os)
 {
     for (int i = 0; i < get_number_registered_motors(); i++) {
@@ -1246,11 +1250,11 @@ bool Robot::handle_M909(GCode& gcode, OutputStream& os)
     M911 will dump all the registers and status of all the motors
     M911[.1] Pn will dump the registers and status of the selected motor.
               R0 will request format in processing machine readable format
-    M911.2 Pn Rxxx Vyyy sets Register xxx to value yyy for motor n,
+    M911.2 [Pn] Rxxx Vyyy sets Register xxx to value yyy for motor n,
                xxx == 255 writes the registers
                xxx == 0 shows what registers are mapped to what
 
-    M911.3 Pn will set the options for motor n based on the parameters passed as below...
+    M911.3 [Pn] will set the options for motor n based on the parameters passed as below, if Pn is not specified it sets for all motors
 
     M911.3 Onnn Qnnn setStallGuardThreshold
            O=stall_guard_threshold, Q=stall_guard_filter_enabled
@@ -1293,18 +1297,26 @@ bool Robot::handle_M911(GCode& gcode, OutputStream& os)
             return true;
         }
 
-    }else if(gcode.has_arg('P')) {
-        int p= gcode.get_int_arg('P');
+    }else{
+        int p= -1;
+        if(gcode.has_arg('P')) p= gcode.get_int_arg('P');
         if(p >= get_number_registered_motors()) return true;
+        int b, e;
+        if(p < 0) {
+            b= 0, e= get_number_registered_motors();
+        }else{
+            b= p; e= p+1;
+        }
+        for (p = b; p < e; ++p) {
+            if(gcode.get_subcode() == 2 && gcode.has_arg('R') && gcode.has_arg('V')) {
+                actuators[p]->set_raw_register(os, gcode.get_int_arg('R'), gcode.get_int_arg('V'));
 
-        if(gcode.get_subcode() == 2 && gcode.has_arg('R') && gcode.has_arg('V')) {
-            actuators[p]->set_raw_register(os, gcode.get_int_arg('R'), gcode.get_int_arg('V'));
-
-        }else if(gcode.get_subcode() == 3 ) {
-            if(!actuators[p]->set_options(gcode)) {
-                os.printf("No options were recognised\n");
-            }else{
-                os.printf("options were set temporarily\n");
+            }else if(gcode.get_subcode() == 3 ) {
+                if(!actuators[p]->set_options(gcode)) {
+                    os.printf("No options were recognised\n");
+                }else{
+                    os.printf("options were set temporarily for %d\n", p);
+                }
             }
         }
         return true;
@@ -1346,7 +1358,7 @@ bool Robot::handle_setregs_cmd( std::string& params, OutputStream& os )
     return true;
 }
 
-#endif // ifdef DRIVER_TMC2590
+#endif // ifdef DRIVER_TMC
 
 bool Robot::handle_M500(GCode& gcode, OutputStream& os)
 {

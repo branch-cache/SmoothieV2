@@ -15,12 +15,14 @@ public:
     ~TemperatureSwitch();
     static bool load(ConfigReader& cr);
     bool is_armed() const { return armed; }
-    virtual void in_command_ctx(bool);
+    bool is_valid() const { return valid; }
+    void after_load();
 
 private:
     enum TRIGGER_TYPE {LEVEL, RISING, FALLING};
     enum STATE {NONE, HIGH_TEMP, LOW_TEMP};
 
+    void tick();
     bool configure(ConfigReader& cr, ConfigReader::section_map_t& m);
     bool handle_arm(GCode& gcode, OutputStream& os);
 
@@ -49,7 +51,6 @@ private:
 
     // our internal second counter
     uint16_t second_counter;
-    uint32_t last_time;
 
     // we are delaying for this many seconds
     uint16_t current_delay;
@@ -61,6 +62,7 @@ private:
         char designator: 8;
         bool inverted: 1;
         bool armed: 1;
+        bool valid: 1;
         TRIGGER_TYPE trigger: 2;
         STATE current_state: 2;
     };

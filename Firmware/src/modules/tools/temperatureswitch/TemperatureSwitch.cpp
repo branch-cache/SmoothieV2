@@ -11,10 +11,13 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 #include "GCode.h"
 #include "Dispatcher.h"
 #include "OutputStream.h"
+#include "SlowTicker.h"
+#include "main.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
-#define TICK2MS( xTicks ) ( (uint32_t) ( (xTicks * 1000) / configTICK_RATE_HZ ) )
+
+#include <math.h>
 
 #define hotend_key "hotend"
 #define threshold_temp_key "threshold_temp"
@@ -32,7 +35,7 @@ REGISTER_MODULE(TemperatureSwitch, TemperatureSwitch::load)
 
 TemperatureSwitch::TemperatureSwitch(const char *name) : Module("temperature switch", name)
 {
-    last_time = xTaskGetTickCount();
+    valid= false; // set to false until we have checked it in after_load()
 }
 
 TemperatureSwitch::~TemperatureSwitch()
@@ -44,7 +47,7 @@ bool TemperatureSwitch::load(ConfigReader& cr)
     printf("DEBUG: configure temperature switches\n");
     ConfigReader::sub_section_map_t ssmap;
     if(!cr.get_sub_sections("temperature switch", ssmap)) {
-        printf("configure-temperature-switch: no temperature switch section found\n");
+        printf("INFO: configure-temperature-switch: no temperature switch section found\n");
         return false;
     }
 
@@ -75,7 +78,7 @@ bool TemperatureSwitch::configure(ConfigReader& cr, ConfigReader::section_map_t&
     // create a temperature control and load settings
     std::string s= cr.get_string(m, designator_key, "");
     if(s.empty()){
-        printf("configure-temperature-switch: WARNING: requires a designator\n");
+        printf("WARNING: configure-temperature-switch: requires a designator\n");
         return false;
 
     }else{
@@ -86,7 +89,7 @@ bool TemperatureSwitch::configure(ConfigReader& cr, ConfigReader::section_map_t&
     this->switch_name = cr.get_string(m, switch_key, "");
     if(this->switch_name.empty()) {
             // no switch specified so invalid entry
-            printf("configure-temperature-switch: WARNING no switch specified\n");
+            printf("WARNING: configure-temperature-switch: no switch specified\n");
             return false;
     }
 
@@ -124,9 +127,31 @@ bool TemperatureSwitch::configure(ConfigReader& cr, ConfigReader::section_map_t&
        Dispatcher::getInstance()->add_handler(Dispatcher::MCODE_HANDLER, arm_mcode, std::bind(&TemperatureSwitch::handle_arm, this, _1, _2));
     }
 
-    // allow context callback
-    want_command_ctx= true;
+    // we read the temperature in this timer. 1Hz is fast enough
+    SlowTicker::getInstance()->attach(1, std::bind(&TemperatureSwitch::tick, this));
+
+    // register a startup function that will be called after all modules have been loaded
+    // (as this module relies on Switch module having been loaded)
+    register_startup(std::bind(&TemperatureSwitch::after_load, this));
+
     return true;
+}
+
+void TemperatureSwitch::after_load()
+{
+    // all modules have been loaded so check that the switch exists here
+    // get current switch state for the named switch
+    Module *m = Module::lookup("switch", this->switch_name.c_str());
+    if(m != nullptr) {
+        // check it is an output switch
+        if(m->request("is_output", nullptr)) {
+            valid= true;
+        }else{
+            printf("ERROR: TemperatureSwitch: switch %s is not an output switch\n", this->switch_name.c_str());
+        }
+    }else{
+        printf("ERROR: TemperatureSwitch: switch %s does not exist\n", this->switch_name.c_str());
+    }
 }
 
 bool TemperatureSwitch::handle_arm(GCode& gcode, OutputStream& os)
@@ -136,19 +161,13 @@ bool TemperatureSwitch::handle_arm(GCode& gcode, OutputStream& os)
     return true;
 }
 
-// Called in command context quite regularly, but we only need to service on the cooldown and heatup poll intervals
-void TemperatureSwitch::in_command_ctx(bool idle)
+// run in a slowtimer. This should be safe so long as the switch only sets pins
+// if switches require commands to be executed we need to rethink this here and in switch
+void TemperatureSwitch::tick()
 {
-    uint32_t now = xTaskGetTickCount();
-    uint32_t msec= TICK2MS(now-last_time);
-    if(msec >= 1000) {
-        uint32_t secs= msec/1000;
-        second_counter+=secs;
-        last_time= now;
+    if(!valid) return; // wait until it is valid
 
-    }else{
-        return;
-    }
+    ++second_counter;
 
     if (second_counter < current_delay) return;
 
@@ -195,14 +214,14 @@ float TemperatureSwitch::get_highest_temperature()
     float high_temp = 0.0;
 
     // TODO optimize by getting a list of valid temperature controls in config
-    //   maybe then only get caled in ctx if it is on.
+    //   maybe then only get called in ctx if it is on.
     // scan all temperature controls with the specified designator
     std::vector<Module*> controllers = Module::lookup_group("temperature control");
     for(auto m : controllers) {
         TemperatureControl::pad_temperature_t temp;
         if(m->request("get_current_temperature", &temp)) {
             // check if this controller's temp is the highest and save it if so
-            if (temp.designator[0] == this->designator && temp.current_temperature > high_temp) {
+            if (temp.designator[0] == this->designator && !isinf(temp.current_temperature) && temp.current_temperature > high_temp) {
                 high_temp = temp.current_temperature;
             }
         }
@@ -226,8 +245,9 @@ void TemperatureSwitch::set_switch(bool switch_state)
     // get current switch state for the named switch
     Module *m = Module::lookup("switch", this->switch_name.c_str());
     if(m != nullptr) {
-        // get switch state
         bool state;
+
+        // get switch state
         m->request("state", &state);
 
         if(state != switch_state) {
@@ -235,7 +255,5 @@ void TemperatureSwitch::set_switch(bool switch_state)
             m->request("set-state", &switch_state);
         }
 
-    } else {
-        printf("TemperatureSwitch: ERROR: named switch %s does not exist\n", this->switch_name.c_str());
     }
 }
