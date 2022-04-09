@@ -1,5 +1,47 @@
 smoothiev2_Nucleo
 smoothiev2_Prime
+smoothieV2_IkosyBot
 flashloader_Prime
 smoothiev2_Devebox
 DFUBootloader/Build/
+.vscode/*
+tags
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+#Map and Symbol Files
+*.map
+*.su
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.elf
+*.out
+*.hex
+*.bin
+

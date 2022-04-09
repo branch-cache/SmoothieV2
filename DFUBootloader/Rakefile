@@ -179,6 +179,10 @@ elsif TARGET == 'Devebox'
   defines << '-DBOARD_DEVEBOX'
   defines << '-DSTM32H743xx'
   defines << '-DHSE_VALUE=25000000'
+elsif TARGET == 'IkosyBot'
+	defines << '-DBOARD_IKOSYBOT'
+	defines << '-DSTM32H753xx'
+	defines << '-DHSE_VALUE=25000000'
 else
   raise("Error unhandled target")
 end

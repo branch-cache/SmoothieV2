@@ -1223,7 +1223,7 @@ void insert()
 	}
 }
 
-int main(const char *infile, const char *outfile, std::function<void(char)> outfnc)
+int main_ecce(const char *infile, const char *outfile, std::function<void(char)> outfnc)
 {
 	int i, k;
 	bool doexit= false;

@@ -27,25 +27,61 @@
 #define QSPI_RELEASE_RESET()       __HAL_RCC_QSPI_RELEASE_RESET()
 
 /* Definition for QSPI Pins */
+#if defined (BOARD_PRIME)
 #define QSPI_CS_PIN                GPIO_PIN_6
 #define QSPI_CS_GPIO_PORT          GPIOB
 #define QSPI_CLK_PIN               GPIO_PIN_2
 #define QSPI_CLK_GPIO_PORT         GPIOB
 #define QSPI_D0_PIN                GPIO_PIN_11
 #define QSPI_D0_GPIO_PORT          GPIOD
-#ifdef BOARD_DEVEBOX
-#define QSPI_D1_PIN                GPIO_PIN_12
-#define QSPI_D1_GPIO_PORT          GPIOD
-#define QSPI_D1_AF                 GPIO_AF9_QUADSPI
-#else
 #define QSPI_D1_PIN                GPIO_PIN_9
 #define QSPI_D1_GPIO_PORT          GPIOF
 #define QSPI_D1_AF                 GPIO_AF10_QUADSPI
-#endif
 #define QSPI_D2_PIN                GPIO_PIN_2
 #define QSPI_D2_GPIO_PORT          GPIOE
 #define QSPI_D3_PIN                GPIO_PIN_13
 #define QSPI_D3_GPIO_PORT          GPIOD
+#elif defined(BOARD_DEVEBOX)
+#define QSPI_CS_PIN                GPIO_PIN_6
+#define QSPI_CS_GPIO_PORT          GPIOB
+#define QSPI_CLK_PIN               GPIO_PIN_2
+#define QSPI_CLK_GPIO_PORT         GPIOB
+#define QSPI_D0_PIN                GPIO_PIN_11
+#define QSPI_D0_GPIO_PORT          GPIOD
+#define QSPI_D1_PIN                GPIO_PIN_12
+#define QSPI_D1_GPIO_PORT          GPIOD
+#define QSPI_D2_PIN                GPIO_PIN_2
+#define QSPI_D2_GPIO_PORT          GPIOE
+#define QSPI_D3_PIN                GPIO_PIN_13
+#define QSPI_D3_GPIO_PORT          GPIOD
+#elif defined(BOARD_IKOSYBOT)
+#define QSPI_CS_PIN                GPIO_PIN_10
+#define QSPI_CS_GPIO_PORT          GPIOB
+#define QSPI_CLK_PIN               GPIO_PIN_2
+#define QSPI_CLK_GPIO_PORT         GPIOB
+#define QSPI_D0_PIN                GPIO_PIN_11
+#define QSPI_D0_GPIO_PORT          GPIOD
+#define QSPI_D1_PIN                GPIO_PIN_12
+#define QSPI_D1_GPIO_PORT          GPIOD
+#define QSPI_D2_PIN                GPIO_PIN_2
+#define QSPI_D2_GPIO_PORT          GPIOE
+#define QSPI_D3_PIN                GPIO_PIN_13
+#define QSPI_D3_GPIO_PORT          GPIOD
+#elif defined(BOARD_NUCLEO)
+#define QSPI_CS_PIN                GPIO_PIN_6
+#define QSPI_CS_GPIO_PORT          GPIOB
+#define QSPI_CLK_PIN               GPIO_PIN_2
+#define QSPI_CLK_GPIO_PORT         GPIOB
+#define QSPI_D0_PIN                GPIO_PIN_11
+#define QSPI_D0_GPIO_PORT          GPIOD
+#define QSPI_D1_PIN                GPIO_PIN_9
+#define QSPI_D1_GPIO_PORT          GPIOF
+#define QSPI_D1_AF                 GPIO_AF10_QUADSPI
+#define QSPI_D2_PIN                GPIO_PIN_2
+#define QSPI_D2_GPIO_PORT          GPIOE
+#define QSPI_D3_PIN                GPIO_PIN_13
+#define QSPI_D3_GPIO_PORT          GPIOD
+#endif
 
 /* Definition for QSPI DMA */
 #define QSPI_DMA_INSTANCE          DMA2_Stream7

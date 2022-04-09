@@ -262,15 +262,18 @@ bool Network::update_cmd( std::string& params, OutputStream& os )
         return true;
     }
 
-#ifdef BOARD_PRIME
+#if defined(BOARD_PRIME)
     std::string urlbin = "http://smoothieware.org/_media/bin/pr.bin";
     std::string urlmd5 = "http://smoothieware.org/_media/bin/pr.md5";
-#elif BOARD_NUCLEO
+#elif defined(BOARD_NUCLEO)
     std::string urlbin = "http://smoothieware.org/_media/bin/nu.bin";
     std::string urlmd5 = "http://smoothieware.org/_media/bin/nu.md5";
 #elif defined(BOARD_DEVEBOX)
     std::string urlbin = "http://smoothieware.org/_media/bin/de.bin";
     std::string urlmd5 = "http://smoothieware.org/_media/bin/de.md5";
+#elif defined(BOARD_IKOSYBOT)
+    std::string urlbin = "http://smoothieware.org/_media/bin/ik.bin";
+    std::string urlmd5 = "http://smoothieware.org/_media/bin/ik.md5";
 #else
 #error "board not supported by update_cmd"
 #endif

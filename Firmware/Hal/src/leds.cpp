@@ -27,6 +27,14 @@ static const char *led_pins[] = {
     nullptr
 };
 
+#elif defined(BOARD_IKOSYBOT)
+static const char *led_pins[] = {
+    "PE3",
+    "PE4",
+    "PE11",
+    nullptr
+};
+
 #else
 static const char *led_pins[] = {nullptr};
 #endif

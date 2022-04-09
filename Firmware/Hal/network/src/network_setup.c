@@ -241,3 +241,102 @@ void HAL_ETH_MspDeInit(ETH_HandleTypeDef* heth)
 }
 
 #endif
+
+#ifdef BOARD_IKOSYBOT
+void HAL_ETH_MspInit(ETH_HandleTypeDef* heth)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	if(heth->Instance == ETH) {
+		/* USER CODE BEGIN ETH_MspInit 0 */
+
+		/* USER CODE END ETH_MspInit 0 */
+		/* Peripheral clock enable */
+		__HAL_RCC_ETH1MAC_CLK_ENABLE();
+		__HAL_RCC_ETH1TX_CLK_ENABLE();
+		__HAL_RCC_ETH1RX_CLK_ENABLE();
+
+		__HAL_RCC_GPIOC_CLK_ENABLE();
+		__HAL_RCC_GPIOA_CLK_ENABLE();
+		__HAL_RCC_GPIOB_CLK_ENABLE();
+		__HAL_RCC_GPIOG_CLK_ENABLE();
+
+		/**ETH GPIO Configuration
+		PA1     ------> ETH_REF_CLK
+		PA2     ------> ETH_MDIO
+		PA7     ------> ETH_CRS_DV
+		PC1     ------> ETH_MDC
+		PC4     ------> ETH_RXD0
+		PC5     ------> ETH_RXD1
+		PB11    ------> ETH_TX_EN
+		PB13    ------> ETH_TXD1
+		PB12    ------> ETH_TXD0
+		*/
+		GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+		GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+		GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_7;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+		GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+		GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+		GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+		/* USER CODE BEGIN ETH_MspInit 1 */
+		/* ETH interrupt Init */
+		NVIC_SetPriority(ETH_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
+		NVIC_EnableIRQ(ETH_IRQn);
+
+		allocate_hal_pin(GPIOA, GPIO_PIN_1);
+		allocate_hal_pin(GPIOA, GPIO_PIN_2);
+		allocate_hal_pin(GPIOA, GPIO_PIN_7);
+		allocate_hal_pin(GPIOC, GPIO_PIN_1);
+		allocate_hal_pin(GPIOC, GPIO_PIN_4);
+		allocate_hal_pin(GPIOC, GPIO_PIN_5);
+		allocate_hal_pin(GPIOB, GPIO_PIN_11);
+		allocate_hal_pin(GPIOB, GPIO_PIN_12);
+		allocate_hal_pin(GPIOB, GPIO_PIN_13);
+
+		/* USER CODE END ETH_MspInit 1 */
+	}
+}
+
+/**
+* @brief ETH MSP De-Initialization
+* This function freeze the hardware resources used in this example
+* @param heth: ETH handle pointer
+* @retval None
+*/
+void HAL_ETH_MspDeInit(ETH_HandleTypeDef* heth)
+{
+	if(heth->Instance == ETH) {
+		/* USER CODE BEGIN ETH_MspDeInit 0 */
+
+		/* USER CODE END ETH_MspDeInit 0 */
+		/* Peripheral clock disable */
+		__HAL_RCC_ETH1MAC_CLK_DISABLE();
+		__HAL_RCC_ETH1TX_CLK_DISABLE();
+		__HAL_RCC_ETH1RX_CLK_DISABLE();
+
+		HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1  | GPIO_PIN_2 | GPIO_PIN_7);
+		HAL_GPIO_DeInit(GPIOB, GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13);
+		HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1  | GPIO_PIN_4 | GPIO_PIN_5);
+
+		/* ETH interrupt DeInit */
+		HAL_NVIC_DisableIRQ(ETH_IRQn);
+		/* USER CODE BEGIN ETH_MspDeInit 1 */
+
+		/* USER CODE END ETH_MspDeInit 1 */
+	}
+}
+#endif

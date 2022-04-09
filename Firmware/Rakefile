@@ -15,27 +15,17 @@ if ENV['target'].nil?
   TARGET = 'Prime'
   #TARGET = 'Nucleo'
   #TARGET = 'Devebox'
-elsif (ENV['target'] != 'Nucleo' && ENV['target'] != 'Prime'&& ENV['target'] != 'Devebox')
-  puts "ERROR: Must specify target=[Nucleo|Prime|Devebox]"
+elsif (ENV['target'] != 'Nucleo' && ENV['target'] != 'Prime'&& ENV['target'] != 'Devebox' && ENV['target'] != 'IkosyBot')
+  puts "ERROR: Must specify target=[Nucleo|Prime|Devebox|IkosyBot]"
   exit 0
 else
   TARGET = ENV['target']
 end
 
 target_defines= []
-# configure main DEBUG UART port to use
-if TARGET == 'Prime'
-  target_defines << '-DUSE_UART2'
-  target_defines << "-DUART2_PINSET=6"
-elsif TARGET == 'Nucleo'
-  target_defines << '-DUSE_UART3'
-  target_defines << '-DUART3_PINSET=9'
-elsif TARGET == 'Devebox'
-  target_defines << '-DUSE_UART4'
-  target_defines << '-DUART4_PINSET=8'
-  ENV['nonetwork'] = '1'
+if TARGET == 'Devebox'
+	ENV['nonetwork'] = '1'
 end
-
 puts "Target is #{TARGET}"
 
 DEBUG = ENV['debug'] == '1'
@@ -92,6 +82,7 @@ end
 Rake.application.add_loader('d', DfileLoader.new)
 
 TOOLSDIR = ENV['ARMTOOLS'].nil? ? '/usr/bin' :  ENV['ARMTOOLS']
+#TOOLSDIR = '/home/dev/temp/apps/gcc-arm-none-eabi-10.3-2021.10/bin'
 TOOLSBIN = "#{TOOLSDIR}/arm-none-eabi-"
 LIBSDIR = "#{TOOLSDIR}/../lib"
 CC = "#{TOOLSBIN}gcc"
@@ -246,15 +237,19 @@ end
 defines << "-DBUILD_TARGET=\\\"#{TARGET}\\\" "
 if TARGET == 'Nucleo'
   defines << '-DBOARD_NUCLEO'
-  defines << '-DSTM32H745xx'
+  defines << '-DSTM32H753xx'
   defines << '-DHSE_VALUE=8000000'
   defines << '-DNO_SD_DET'
+  target_defines << '-DUSE_UART3'
+  target_defines << '-DUART3_PINSET=9'
 elsif TARGET == 'Prime'
   defines << '-DBOARD_PRIME'
   defines << '-DSTM32H745xx'
   defines << '-DHSE_VALUE=25000000'
   defines << '-DDRIVER_TMC'
   defines << '-DNO_SD_DET'
+  target_defines << '-DUSE_UART2'
+  target_defines << "-DUART2_PINSET=6"
 elsif TARGET == 'Devebox'
   defines << '-DBOARD_DEVEBOX'
   defines << '-DSTM32H743xx'
@@ -262,6 +257,17 @@ elsif TARGET == 'Devebox'
   defines << '-DDRIVER_TMC'
   defines << '-DNO_SD_DET'
   defines << '-DN_PRIMARY_AXIS=4'
+  target_defines << '-DUSE_UART4'
+  target_defines << '-DUART4_PINSET=8'
+elsif TARGET == 'IkosyBot'
+	defines << '-DBOARD_IKOSYBOT'
+	defines << '-DSTM32H753xx'
+	defines << '-DHSE_VALUE=8000000'
+	defines << '-DDRIVER_TMC2590'
+	defines << '-DNO_SD_DET'
+	defines << '-DN_PRIMARY_AXIS=4'
+	target_defines << '-DUSE_UART2'
+	target_defines << '-DUART2_PINSET=6'
 else
   raise("Error unhandled target")
 end
@@ -288,6 +294,7 @@ CPPFLAGS = CFLAGS + ' -Wno-psabi  -fno-rtti -fno-common -std=gnu++14 -fno-except
 
 # Linker script to be used.
 LSCRIPT = "STM32H745_FLASH.ld"
+#LSCRIPT = "STM32H753ZITX_FLASH.ld"
 
 LOPTIONS = ['-Wl,--gc-sections', '-Wl,-print-memory-usage',
             '-Wl,--wrap=malloc', '-Wl,--wrap=_malloc_r',

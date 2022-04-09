@@ -40,6 +40,8 @@ __attribute__ ((section (".last_word"))) uint64_t magic = 0x1234567898765401LL;
 __attribute__ ((section (".last_word"))) uint64_t magic = 0x1234567898765402LL;
 #elif defined(BOARD_PRIME)
 __attribute__ ((section (".last_word"))) uint64_t magic = 0x1234567898765403LL;
+#elif defined(BOARD_IKOSYBOT)
+__attribute__ ((section (".last_word"))) uint64_t magic = 0x1234567898765404LL;
 #else
 #error not a recognized BOARD defined
 #endif
@@ -167,7 +169,7 @@ static void SystemClock_Config(void)
 	* in the RCC_OscInitTypeDef structure.
 	*/
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-#ifdef BOARD_NUCLEO
+#if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
 	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
 #else
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -177,7 +179,7 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
-#ifdef BOARD_NUCLEO
+#ifdef defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
 	RCC_OscInitStruct.PLL.PLLM = 1;
 	RCC_OscInitStruct.PLL.PLLN = 100;
 	RCC_OscInitStruct.PLL.PLLP = 2;

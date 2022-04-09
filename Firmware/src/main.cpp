@@ -52,6 +52,7 @@
 #include <iostream>
 #include <malloc.h>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <functional>
 
@@ -77,6 +78,8 @@ const char *get_config_error_msg() {
 #define MAGIC_NUMBER 0x1234567898765402LL
 #elif defined(BOARD_PRIME)
 #define MAGIC_NUMBER 0x1234567898765403LL
+#elif defined(BOARD_IKOSYBOT)
+#define MAGIC_NUMBER 0x1234567898765404LL
 #else
 #error not a recognized BOARD defined
 #endif
@@ -193,6 +196,9 @@ void register_startup(StartupFunc_t sf)
 extern "C" bool setup_sdmmc();
 static FATFS fatfs; /* File system object */
 extern bool config_override;
+const char *configFileString =
+#include "../../ConfigSamples/config-3d.ini"
+;
 
 static void smoothie_startup(void *)
 {
@@ -228,6 +234,7 @@ static void smoothie_startup(void *)
 
     // open the config file
     do {
+#if 0		
         if(!setup_sdmmc()) {
             printf("ERROR: setting up sdmmc\n");
             break;
@@ -249,8 +256,9 @@ static void smoothie_startup(void *)
             //f_unmount("sd");
             break;
         }
-
-        ConfigReader cr(fs);
+#endif
+        std::stringstream ss(configFileString);
+        ConfigReader cr(ss);
         printf("DEBUG: Starting configuration of modules from sdcard...\n");
 
         // led 2 indicates boot phase 3 starts
@@ -411,6 +419,8 @@ static void smoothie_startup(void *)
             std::map<std::string, std::tuple<int32_t, float>> names { {"vmotor", {0, 11.0F}},  {"vfet", {3, 11.0F}} };
 #elif defined(BOARD_PRIME)
             std::map<std::string, std::tuple<int32_t, float>> names { {"vmotor", {5, 11.0F}},  {"vfet", {2, 11.0F}} };
+#elif defined(BOARD_IKOSYBOT)
+            std::map<std::string, std::tuple<int32_t, float>> names { {"vmotor", {5, 11.0F}},  {"vfet", {2, 11.0F}} };
 #endif
             for(auto& n : names) {
                 if(voltage_monitors.find(n.first) == voltage_monitors.end()) {
@@ -438,7 +448,7 @@ static void smoothie_startup(void *)
         }
 
         // close the file stream
-        fs.close();
+        //fs.close();
 
         // unmount sdcard
         //f_unmount("sd");

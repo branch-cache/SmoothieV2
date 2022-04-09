@@ -163,7 +163,7 @@ bool SPI::init(int bits, int mode, int frequency)
     }else if(_channel == 0){
         // set to 10MHz for SPI
         PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2;
-        #ifdef BOARD_NUCLEO
+        #if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
         PeriphClkInitStruct.PLL2.PLL2M = 1;
         PeriphClkInitStruct.PLL2.PLL2N = 20;
         PeriphClkInitStruct.PLL2.PLL2P = 16;

@@ -1912,7 +1912,7 @@ bool CommandShell::msc_cmd(std::string& params, OutputStream& os)
 
 namespace ecce
 {
-int main(const char *infile, const char *outfile, std::function<void(char)> outfnc);
+int main_ecce(const char *infile, const char *outfile, std::function<void(char)> outfnc);
 void add_input(char c);
 }
 bool CommandShell::edit_cmd(std::string& params, OutputStream& os)
@@ -1941,7 +1941,7 @@ bool CommandShell::edit_cmd(std::string& params, OutputStream& os)
     os.printf("type %%h for help\n");
 
     os.capture_fnc = [](char c) { ecce::add_input(c); };
-    int ret = ecce::main(infile.c_str(), outfile.c_str(), [&os](char c) {os.write(&c, 1);});
+    int ret = ecce::main_ecce(infile.c_str(), outfile.c_str(), [&os](char c) {os.write(&c, 1);});
     os.capture_fnc = nullptr;
     if(ret == 0) {
         os.printf("edit was successful\n");

@@ -27,6 +27,15 @@ static LEDS_t LEDS[NLEDS] = {
 static LEDS_t LEDS[NLEDS] = { {GPIOA, GPIO_PIN_1, 1} };
 #define LEDS_GPIO_CLK_ENABLE()  {__HAL_RCC_GPIOA_CLK_ENABLE();}
 
+#elif defined(BOARD_IKOSYBOT)
+#define NLEDS 3
+static LEDS_t LEDS[NLEDS] = {
+	{GPIOE, GPIO_PIN_3, 0},
+	{GPIOE, GPIO_PIN_4, 0},
+	{GPIOE, GPIO_PIN_11, 0}
+};
+#define LEDS_GPIO_CLK_ENABLE()  {__HAL_RCC_GPIOB_CLK_ENABLE(); __HAL_RCC_GPIOE_CLK_ENABLE(); }
+
 #else
 #error unrecognized board
 #endif
