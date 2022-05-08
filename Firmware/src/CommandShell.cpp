@@ -672,7 +672,7 @@ static bool get_spindle_state()
 // set or get gpio
 bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
 {
-    HELP("set and get gpio pins: use PA1 out/in [on/off]");
+    HELP("set and get gpio pins: use PA1 o[ut]/i[n] [on/off | 1/0] [timeout]");
 
     std::string gpio = stringutils::shift_parameter( params );
     std::string dir = stringutils::shift_parameter( params );
@@ -690,13 +690,14 @@ bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
         return true;
     }
 
-    // FIXME need to handle allocated pins
+    // FIXME need to handle allocated pins, but that would require a list of all allocated pins
+    // Maybe if we add a -f flag we could deinit the pin first but that would leave the pin deallocated
     if(Pin::is_allocated(port, pin_no)) {
         os.printf("Pin is already allocated: %s\n", gpio.c_str());
         return true;
     }
 
-    if(dir.empty() || dir == "in") {
+    if(dir.empty() || dir == "in" || dir == "i") {
         // read pin
         Pin pin(gpio.c_str(), Pin::AS_INPUT);
         if(!pin.connected()) {
@@ -705,10 +706,11 @@ bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
         }
 
         os.printf("%s\n", pin.to_string().c_str());
+        pin.deinit();
         return true;
     }
 
-    if(dir == "out") {
+    if(dir == "out" || dir == "o") {
         std::string v = stringutils::shift_parameter( params );
         if(v.empty()) {
             os.printf("on|off required\n");
@@ -719,9 +721,16 @@ bool CommandShell::gpio_cmd(std::string& params, OutputStream& os)
             os.printf("Not a valid GPIO\n");
             return true;
         }
-        bool b = (v == "on");
+        bool b = (v == "on" || v == "1");
         pin.set(b);
         os.printf("%s: was set to %s\n", pin.to_string().c_str(), v.c_str());
+        v= stringutils::shift_parameter( params ); // get timeout
+        if(v.empty()) {
+            safe_sleep(2000);
+        }else{
+            safe_sleep(atoi(v.c_str()));
+        }
+        pin.deinit();
         return true;
     }
 

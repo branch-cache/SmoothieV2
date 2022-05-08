@@ -70,6 +70,9 @@ Pin::Pin(const char *s, TYPE_T t)
         switch(t) {
             case AS_INPUT: as_input(); break;
             case AS_OUTPUT: as_output(); break;
+            // these set the initial output state of the pin before it is set as an output
+            case AS_OUTPUT_OFF: set(false); as_output(); break;
+            case AS_OUTPUT_ON: set(true); as_output(); break;
         }
     }
 }
@@ -314,9 +317,8 @@ bool Pin::as_output()
     GPIO_InitStruct.Pin = ppin;
 
     pullup = pulldown = false;
-
+    is_input= false;
     HAL_GPIO_Init((GPIO_TypeDef *)pport, &GPIO_InitStruct);
-
     return true;
 }
 
@@ -330,6 +332,7 @@ bool Pin::as_input()
     GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
     GPIO_InitStruct.Pin = ppin;
 
+    is_input= true;
     HAL_GPIO_Init((GPIO_TypeDef *)pport, &GPIO_InitStruct);
 
     return true;

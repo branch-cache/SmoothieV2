@@ -156,7 +156,7 @@ bool Switch::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
 
     } else if(type == "digital") {
         output_type = DIGITAL;
-        digital_pin = new Pin(output_pin.c_str(), Pin::AS_OUTPUT);
+        digital_pin = new Pin(output_pin.c_str(), switch_state ? Pin::AS_OUTPUT_ON : Pin::AS_OUTPUT_OFF);
         if(!digital_pin->connected()) {
             printf("ERROR: switch-config - Selected digital pin is invalid\n");
             delete digital_pin;
@@ -168,6 +168,7 @@ bool Switch::configure(ConfigReader& cr, ConfigReader::section_map_t& m)
             } else {
                 //set_low_on_debug(digital_pin->port_number, digital_pin->pin);
             }
+            // printf("DEBUG: Initial output state: %s\n", digital_pin->to_string().c_str());
         }
 
     } else if(type == "hwpwm") {
