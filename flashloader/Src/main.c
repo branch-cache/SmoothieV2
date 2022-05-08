@@ -169,7 +169,7 @@ static void SystemClock_Config(void)
 	* in the RCC_OscInitTypeDef structure.
 	*/
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-#if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
+#ifdef BOARD_NUCLEO
 	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
 #else
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -179,7 +179,7 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
-#ifdef defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
+#if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
 	RCC_OscInitStruct.PLL.PLLM = 1;
 	RCC_OscInitStruct.PLL.PLLN = 100;
 	RCC_OscInitStruct.PLL.PLLP = 2;

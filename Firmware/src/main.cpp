@@ -200,7 +200,7 @@ extern "C" bool setup_sdmmc();
 static FATFS fatfs; /* File system object */
 extern bool config_override;
 const char *configFileString =
-#include "../../ConfigSamples/config-3d.ini"
+#include "../../ConfigSamples/ikosybot.ini"
 ;
 
 static void smoothie_startup(void *)
@@ -237,7 +237,7 @@ static void smoothie_startup(void *)
 
     // open the config file
     do {
-#if 0		
+#ifndef BOARD_IKOSYBOT		
         if(!setup_sdmmc()) {
             printf("ERROR: setting up sdmmc\n");
             break;
@@ -259,11 +259,12 @@ static void smoothie_startup(void *)
             //f_unmount("sd");
             break;
         }
-#endif
+		printf("DEBUG: Starting configuration of modules from sdcard...\n");
+#else
         std::stringstream ss(configFileString);
         ConfigReader cr(ss);
-        printf("DEBUG: Starting configuration of modules from sdcard...\n");
-
+        printf("DEBUG: Starting configuration from Hard-coded File String...\n");
+#endif
         // led 2 indicates boot phase 3 starts
         Board_LED_Set(2, false); Board_LED_Set(1, true);
 
@@ -645,9 +646,11 @@ int main(int argc, char *argv[])
     // de init them
     bid0.deinit(); bid1.deinit(); bid2.deinit(); bid3.deinit();
 
+#ifndef BOARD_IKOSYBOT
     if(rtc_init() != 1) {
         printf("ERROR: Failed to init RTC\n");
     }
+#endif
 
     // launch the startup thread which will become the command thread that executes all incoming commands
     // set to be lower priority than comms, although it maybe better to invert them as we don't really

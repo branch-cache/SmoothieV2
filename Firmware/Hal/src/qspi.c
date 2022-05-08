@@ -50,6 +50,7 @@
 #define QSPI_D0_GPIO_PORT          GPIOD
 #define QSPI_D1_PIN                GPIO_PIN_12
 #define QSPI_D1_GPIO_PORT          GPIOD
+#define QSPI_D1_AF                 GPIO_AF10_QUADSPI
 #define QSPI_D2_PIN                GPIO_PIN_2
 #define QSPI_D2_GPIO_PORT          GPIOE
 #define QSPI_D3_PIN                GPIO_PIN_13
@@ -63,6 +64,7 @@
 #define QSPI_D0_GPIO_PORT          GPIOD
 #define QSPI_D1_PIN                GPIO_PIN_12
 #define QSPI_D1_GPIO_PORT          GPIOD
+#define QSPI_D1_AF                 GPIO_AF10_QUADSPI
 #define QSPI_D2_PIN                GPIO_PIN_2
 #define QSPI_D2_GPIO_PORT          GPIOE
 #define QSPI_D3_PIN                GPIO_PIN_13
@@ -76,6 +78,7 @@
 #define QSPI_D0_GPIO_PORT          GPIOD
 #define QSPI_D1_PIN                GPIO_PIN_9
 #define QSPI_D1_GPIO_PORT          GPIOF
+#define QSPI_D1_AF                 GPIO_AF10_QUADSPI
 #define QSPI_D1_AF                 GPIO_AF10_QUADSPI
 #define QSPI_D2_PIN                GPIO_PIN_2
 #define QSPI_D2_GPIO_PORT          GPIOE

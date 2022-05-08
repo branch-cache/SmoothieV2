@@ -824,7 +824,7 @@ static void SystemClock_Config(void)
 	* in the RCC_OscInitTypeDef structure.
 	*/
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-#if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
+#ifdef BOARD_NUCLEO
 	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
 #else
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
