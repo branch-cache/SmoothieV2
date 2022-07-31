@@ -94,7 +94,7 @@ UART::~UART()
 
 /* Definition for USART1x's NVIC */
 #define USART1x_IRQn                      USART3_IRQn
-#ifndef BOARD_NUCLEO
+#if !defined(BOARD_NUCLEO) & !defined(BOARD_IKOSYBOT)
 #define USART1x_IRQHandler                USART3_IRQHandler
 #endif
 

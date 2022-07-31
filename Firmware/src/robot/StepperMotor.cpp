@@ -93,6 +93,7 @@ void StepperMotor::manual_step(bool dir)
 // prime has TMC2590 or TMC2660 drivers so this handles the setup of those drivers
 #include "TMC2590.h"
 #include "TMC26X.h"
+#include "DRV8711.h"
 
 bool StepperMotor::vmot= false;
 bool StepperMotor::setup_tmc(ConfigReader& cr, const char *actuator_name, uint32_t type)
@@ -103,7 +104,10 @@ bool StepperMotor::setup_tmc(ConfigReader& cr, const char *actuator_name, uint32
         tmc= new TMC2590(axis);
     }else if(type == 2660){
         tmc= new TMC26X(axis);
-    }else{
+    }else if(type == 8711){
+		tmc = new DRV8711(axis);
+	}
+	else{
         printf("ERROR: tmc%lu is not a valid driver\n", type);
         return false;
     }

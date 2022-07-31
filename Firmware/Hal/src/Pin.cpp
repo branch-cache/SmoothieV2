@@ -18,7 +18,7 @@ static std::set<std::string> black_listed {
 #ifdef BOARD_DEVEBOX
     "PD11", "PD12", "PE2", "PD13", "PB6", "PB2",           // QSPI
 #else
-    "PD11", "PF9", "PE2", "PD13", "PB6", "PB2",           // QSPI
+    "PD11", "PF9", "PE2", "PD13", "PC11", "PB2",           // QSPI
 #endif
     "PG10", "PC8", "PC9", "PC10", "PC11", "PC12", "PD2", // SDCard
 #if defined(BOARD_NUCLEO)

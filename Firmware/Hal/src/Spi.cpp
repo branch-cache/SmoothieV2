@@ -14,6 +14,32 @@
 #include "task.h"
 #include "semphr.h"
 
+
+#if defined (BOARD_IKOSYBOT)
+/* Define SPI1 for 1st SPI */
+#define SPI1x                              SPI1
+#define SPI1x_CLK_ENABLE()                __HAL_RCC_SPI1_CLK_ENABLE()
+#define DMA1_CLK_ENABLE()                 __HAL_RCC_DMA2_CLK_ENABLE()
+#define SPI1x_SCK_GPIO_CLK_ENABLE()       __HAL_RCC_GPIOA_CLK_ENABLE()
+#define SPI1x_MISO_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
+#define SPI1x_MOSI_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
+#define SPI1x_FORCE_RESET()               __HAL_RCC_SPI1_FORCE_RESET()
+#define SPI1x_RELEASE_RESET()             __HAL_RCC_SPI1_RELEASE_RESET()
+#define SPI1x_IRQn                        SPI1_IRQn
+#define SPI1x_IRQHandler                  SPI1_IRQHandler
+
+/* Definition SPI1 Pins */
+#define SPI1x_SCK_PIN                     GPIO_PIN_9
+#define SPI1x_SCK_GPIO_PORT               GPIOA
+#define SPI1x_SCK_AF                      GPIO_AF5_SPI1
+#define SPI1x_MISO_PIN                    GPIO_PIN_14
+#define SPI1x_MISO_GPIO_PORT              GPIOB
+#define SPI1x_MISO_AF                     GPIO_AF5_SPI1
+#define SPI1x_MOSI_PIN                    GPIO_PIN_15
+#define SPI1x_MOSI_GPIO_PORT              GPIOB
+#define SPI1x_MOSI_AF                     GPIO_AF5_SPI1
+
+#else
 /* Define SPI1 for 1st SPI */
 #define SPI1x                              SPI1
 #define SPI1x_CLK_ENABLE()                __HAL_RCC_SPI1_CLK_ENABLE()
@@ -36,6 +62,7 @@
 #define SPI1x_MOSI_PIN                    GPIO_PIN_5
 #define SPI1x_MOSI_GPIO_PORT              GPIOB
 #define SPI1x_MOSI_AF                     GPIO_AF5_SPI1
+#endif
 
 #ifdef BOARD_DEVEBOX
 // Define SPI2 for 2nd SPI

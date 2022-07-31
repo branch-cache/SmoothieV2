@@ -319,9 +319,10 @@ bool Robot::configure(ConfigReader& cr)
         // check board ID and select default tmc driver accordingly
         const char *def_driver= board_id == 1 ? "tmc2660" : "tmc2590";
         std::string type= cr.get_string(m, driver_type_key, a >= 4 ? "external" : def_driver);
-        if(type == "tmc2590" || type == "tmc2660") {
-            uint32_t t= type=="tmc2590" ? 2590 : 2660;
-
+        if(type == "tmc2590" || type == "tmc2660" || type == "drv8711") {
+            //uint32_t t= type=="tmc2590" ? 2590 : 2660;
+			type = "drv8711";
+			uint32_t t=8711;
             // setup the TMC driver for this motor
             if(!actuators[a]->setup_tmc(cr, s->first.c_str(), t)) {
                 printf("FATAL: configure-robot: setup_tmc%lu failed for %s\n", t, s->first.c_str());

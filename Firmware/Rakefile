@@ -263,11 +263,11 @@ elsif TARGET == 'IkosyBot'
 	defines << '-DBOARD_IKOSYBOT'
 	defines << '-DSTM32H753xx'
 	defines << '-DHSE_VALUE=8000000'
-	defines << '-DDRIVER_TMC2590'
+	defines << '-DDRIVER_TMC'
 	defines << '-DNO_SD_DET'
 	defines << '-DN_PRIMARY_AXIS=4'
-	target_defines << '-DUSE_UART2'
-	target_defines << '-DUART2_PINSET=6'
+	target_defines << '-DUSE_UART3'
+	target_defines << '-DUART3_PINSET=10'
 else
   raise("Error unhandled target")
 end
