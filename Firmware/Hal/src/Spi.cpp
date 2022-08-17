@@ -17,16 +17,16 @@
 
 #if defined (BOARD_IKOSYBOT)
 /* Define SPI1 for 1st SPI */
-#define SPI1x                              SPI1
-#define SPI1x_CLK_ENABLE()                __HAL_RCC_SPI1_CLK_ENABLE()
+#define SPI1x                              SPI2
+#define SPI1x_CLK_ENABLE()                __HAL_RCC_SPI2_CLK_ENABLE()
 #define DMA1_CLK_ENABLE()                 __HAL_RCC_DMA2_CLK_ENABLE()
 #define SPI1x_SCK_GPIO_CLK_ENABLE()       __HAL_RCC_GPIOA_CLK_ENABLE()
 #define SPI1x_MISO_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
 #define SPI1x_MOSI_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
-#define SPI1x_FORCE_RESET()               __HAL_RCC_SPI1_FORCE_RESET()
-#define SPI1x_RELEASE_RESET()             __HAL_RCC_SPI1_RELEASE_RESET()
-#define SPI1x_IRQn                        SPI1_IRQn
-#define SPI1x_IRQHandler                  SPI1_IRQHandler
+#define SPI1x_FORCE_RESET()               __HAL_RCC_SPI2_FORCE_RESET()
+#define SPI1x_RELEASE_RESET()             __HAL_RCC_SPI2_RELEASE_RESET()
+#define SPI1x_IRQn                        SPI2_IRQn
+#define SPI1x_IRQHandler                  SPI2_IRQHandler
 
 /* Definition SPI1 Pins */
 #define SPI1x_SCK_PIN                     GPIO_PIN_9
@@ -149,6 +149,7 @@ SPI::SPI(int channel)
 
 bool SPI::init(int bits, int mode, int frequency)
 {
+	uint32_t spi_hz;
     if(_valid) {
         if(bits != _bits || mode != _mode || frequency != _hz) {
             printf("ERROR: SPI channel %d, already set with different parameters\n", _channel);
@@ -161,7 +162,7 @@ bool SPI::init(int bits, int mode, int frequency)
     _mode = mode;
     _hz = frequency;
 
-#if 0
+#if 1
     // TODO maybe only do this if requested frequency is below 750KHz
     // change the clock the SPI uses
     RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
@@ -188,12 +189,12 @@ bool SPI::init(int bits, int mode, int frequency)
         __HAL_RCC_SPI4_CLK_ENABLE();
 
     }else if(_channel == 0){
-        // set to 10MHz for SPI
+        // set to 16MHz for SPI
         PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2;
         #if defined(BOARD_NUCLEO) || defined(BOARD_IKOSYBOT)
         PeriphClkInitStruct.PLL2.PLL2M = 1;
         PeriphClkInitStruct.PLL2.PLL2N = 20;
-        PeriphClkInitStruct.PLL2.PLL2P = 16;
+        PeriphClkInitStruct.PLL2.PLL2P = 10;
         PeriphClkInitStruct.PLL2.PLL2Q = 16;
         PeriphClkInitStruct.PLL2.PLL2R = 2;
         #else
@@ -214,20 +215,20 @@ bool SPI::init(int bits, int mode, int frequency)
         }
         SPI1x_CLK_ENABLE();
     }
-    spi_hz= 10000000; // 10 MHz
-#endif
+    spi_hz= 16000000; // 16 MHz
+#else
 
-    uint32_t spi_hz;
+    
 #ifdef USE_FULL_LL_DRIVER
     spi_hz = LL_RCC_GetSPIClockFreq(LL_RCC_SPI123_CLKSOURCE);
     printf("DEBUG: SPI clk source: %lu hz\n", spi_hz);
-    uint32_t f = (uint32_t) (spi_hz / frequency);
 #else
     // divisor needed for requested frequency
     spi_hz= SystemCoreClock / 2;
-    uint32_t f = (uint32_t) spi_hz / frequency;
 #endif
 
+#endif
+	uint32_t f = (uint32_t) spi_hz / frequency;
     uint32_t psc = 0;
     // find nearest prescaler
     if(f <= 2) { psc = SPI_BAUDRATEPRESCALER_2; f = 2; }

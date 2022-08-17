@@ -153,6 +153,7 @@ void DRV8711::init()
 {
     // set the saved values
  	set_defaults();
+	WriteAllRegisters();
     ReadAllRegisters();
     started = true;
 }
