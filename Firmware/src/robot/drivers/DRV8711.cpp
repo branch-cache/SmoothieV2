@@ -116,7 +116,7 @@ bool DRV8711::config(ConfigReader& cr, const char *actuator_name)
         bool ok = false;
         spi = SPI::getInstance(spi_channel);
         if(spi != nullptr) {
-            if(spi->init(8, 0, 500000)) { // 8bit, mode0, 500KHz
+            if(spi->init(8, 0, 100000)) { // 8bit, mode0, 500KHz
                 ok = true;
             }
         }
